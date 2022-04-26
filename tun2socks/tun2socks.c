@@ -75,6 +75,8 @@
 
 #include <generated/blog_channel_tun2socks.h>
 
+#include <ndm/feedback.h>
+
 #define LOGGER_STDOUT 1
 #define LOGGER_SYSLOG 2
 
@@ -104,6 +106,7 @@ struct {
     int loglevel;
     int loglevels[BLOG_NUM_CHANNELS];
     char *tundev;
+    char *ndm_script;
     char *netif_ipaddr;
     char *netif_netmask;
     char *netif_ip6addr;
@@ -253,6 +256,18 @@ static int client_socks_recv_send_out (struct tcp_client *client);
 static err_t client_sent_func (void *arg, struct tcp_pcb *tpcb, u16_t len);
 static void udp_send_packet_to_device (void *unused, BAddr local_addr, BAddr remote_addr, const uint8_t *data, int data_len);
 
+static bool NdmNotify(const char *ndm_script, const char *tun_device_name)
+{
+    const char *args[] = {
+        ndm_script,
+        "up",
+        tun_device_name,
+        NULL
+    };
+
+    return ndm_feedback(NDM_FEEDBACK_TIMEOUT_MSEC, args, NULL);
+}
+
 int main (int argc, char **argv)
 {
     if (argc <= 0) {
@@ -347,7 +362,12 @@ int main (int argc, char **argv)
         BLog(BLOG_ERROR, "BTap_Init failed");
         goto fail3;
     }
-    
+
+    if (!NdmNotify(options.ndm_script, options.tundev)) {
+        BLog(BLOG_ERROR, "NDM feedback failed");
+        goto fail4;
+    }
+
     // NOTE: the order of the following is important:
     // first device writing must evaluate,
     // then lwip (so it can send packets to the device),
@@ -554,6 +574,7 @@ int parse_arguments (int argc, char *argv[])
     for (int i = 0; i < BLOG_NUM_CHANNELS; i++) {
         options.loglevels[i] = -1;
     }
+    options.ndm_script = NULL;
     options.tundev = NULL;
     options.netif_ipaddr = NULL;
     options.netif_netmask = NULL;
@@ -644,6 +665,14 @@ int parse_arguments (int argc, char *argv[])
             }
             options.loglevels[channel] = loglevel;
             i += 2;
+        }
+        else if (!strcmp(arg, "--ndm-script")) {
+            if (1 >= argc - i) {
+                fprintf(stderr, "%s: requires an argument\n", arg);
+                return 0;
+            }
+            options.ndm_script = argv[i + 1];
+            i++;
         }
         else if (!strcmp(arg, "--tundev")) {
             if (1 >= argc - i) {
@@ -756,6 +785,11 @@ int parse_arguments (int argc, char *argv[])
     
     if (options.help || options.version) {
         return 1;
+    }
+    
+    if (!options.ndm_script) {
+        fprintf(stderr, "--ndm-script is required\n");
+        return 0;
     }
     
     if (!options.netif_ipaddr) {
