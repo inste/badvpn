@@ -261,8 +261,10 @@ void recv_handler_done (BHttpProxyClient *o, int data_len)
             BLog(BLOG_DEBUG, "received reply header");
 
             if (memcmp(o->buffer, "HTTP/1.1 2", sizeof("HTTP/1.1 2") - 1) != 0 || o->buffer[12] != ' ') {
-                BLog(BLOG_NOTICE, "invalid HTTP response");
-                goto fail;
+                if (memcmp(o->buffer, "HTTP/1.0 2", sizeof("HTTP/1.0 2") - 1) != 0 || o->buffer[12] != ' ') {
+                    BLog(BLOG_NOTICE, "invalid HTTP response");
+                    goto fail;
+                }
             }
             
             // receive the rest of the reply
