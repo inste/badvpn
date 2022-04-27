@@ -32,6 +32,9 @@
 #include <string.h>
 #include <limits.h>
 
+#include <pwd.h>
+#include <grp.h>
+
 #include <misc/version.h>
 #include <misc/loggers_string.h>
 #include <misc/loglevel.h>
@@ -75,6 +78,16 @@
 
 #include <generated/blog_channel_tun2socks.h>
 
+#include <sys/syscall.h>
+#include <sys/prctl.h>
+#include <linux/capability.h>
+#if !defined(capset)
+int capset(cap_user_header_t hdrp, const cap_user_data_t datap)
+{
+    return syscall(SYS_capset, hdrp, datap);
+}
+#endif
+
 #include <ndm/feedback.h>
 
 #define LOGGER_STDOUT 1
@@ -108,6 +121,7 @@ struct {
     char *tundev;
     char *ndm_script;
     char *sobindtodevice;
+    char *uid;
     char *netif_ipaddr;
     char *netif_netmask;
     char *netif_ip6addr;
@@ -267,6 +281,46 @@ static bool NdmNotify(const char *ndm_script, const char *tun_device_name)
     };
 
     return ndm_feedback(NDM_FEEDBACK_TIMEOUT_MSEC, args, NULL);
+}
+
+static bool DropPrivileges(const char *user)
+{
+    if (geteuid() == 0) {
+        struct group *grp;
+        struct passwd *pwd;
+
+        errno = 0;
+        pwd = getpwnam(user);
+
+        if (pwd == NULL) {
+            BLog(BLOG_ERROR, "Unable to get UID for user \"%s\": %s",
+                user, strerror(errno));
+            return false;
+        }
+
+        errno = 0;
+        grp = getgrnam(user);
+
+        if (grp == NULL) {
+            BLog(BLOG_ERROR, "Unable to get GID for group \"%s\": %s",
+                user, strerror(errno));
+            return false;
+        }
+
+        if (setgid(grp->gr_gid) == -1) {
+            BLog(BLOG_ERROR, "Unable to set new group \"%s\": %s",
+                user, strerror(errno));
+            return false;
+        }
+
+        if (setuid(pwd->pw_uid) == -1) {
+            BLog(BLOG_ERROR, "Unable to set new user \"%s\": %s",
+                user, strerror(errno));
+            return false;
+        }
+    }
+
+    return true;
 }
 
 int main (int argc, char **argv)
@@ -453,11 +507,46 @@ int main (int argc, char **argv)
     
     // init number of clients
     num_clients = 0;
-    
+
+    if (options.uid != NULL) {
+        if (options.sobindtodevice != NULL) {
+            if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
+                BLog(BLOG_ERROR, "prctl(PR_SET_KEEPCAPS) failed");
+                goto fail6;
+            }
+        }
+        if (!DropPrivileges(options.uid)) {
+            goto fail6;
+        }
+        if (options.sobindtodevice != NULL) {
+            struct __user_cap_header_struct header = {
+                .version = _LINUX_CAPABILITY_VERSION_3,
+            };
+            struct __user_cap_data_struct caps[2];
+
+            memset(&caps, 0, sizeof(caps));
+
+            caps[0].effective |= 1 << CAP_NET_RAW;
+            caps[0].permitted |= 1 << CAP_NET_RAW;
+            caps[0].inheritable |= 1 << CAP_NET_RAW;
+
+            if (capset(&header, caps) != 0) {
+                BLog(BLOG_ERROR, "capset(CAP_NET_RAW) failed");
+                goto fail6;
+            }
+
+            if (prctl(PR_SET_KEEPCAPS, 0, 0, 0, 0) == -1) {
+                BLog(BLOG_ERROR, "prctl(PR_SET_KEEPCAPS) failed");
+                goto fail6;
+            }
+        }
+    }
+
     // enter event loop
     BLog(BLOG_NOTICE, "entering event loop");
     BReactor_Exec(&ss);
-    
+
+fail6:
     // free clients
     LinkedList1Node *node;
     while (node = LinkedList1_GetFirst(&tcp_clients)) {
@@ -578,6 +667,7 @@ int parse_arguments (int argc, char *argv[])
     }
     options.ndm_script = NULL;
     options.sobindtodevice = NULL;
+    options.uid = NULL;
     options.tundev = NULL;
     options.netif_ipaddr = NULL;
     options.netif_netmask = NULL;
@@ -683,6 +773,14 @@ int parse_arguments (int argc, char *argv[])
                 return 0;
             }
             options.sobindtodevice = argv[i + 1];
+            i++;
+        }
+        else if (!strcmp(arg, "--uid")) {
+            if (1 >= argc - i) {
+                fprintf(stderr, "%s: requires an argument\n", arg);
+                return 0;
+            }
+            options.uid = argv[i + 1];
             i++;
         }
         else if (!strcmp(arg, "--tundev")) {
