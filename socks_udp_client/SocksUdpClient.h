@@ -111,7 +111,8 @@ struct SocksUdpClient_connection {
 int SocksUdpClient_Init (SocksUdpClient *o, int udp_mtu, int max_connections,
     int send_buf_size, btime_t keepalive_time, BAddr server_addr,
     const struct BSocksClient_auth_info *auth_info, size_t num_auth_info,
-    BReactor *reactor, void *user, SocksUdpClient_handler_received handler_received);
+    BReactor *reactor, void *user, SocksUdpClient_handler_received handler_received,
+    const char *sobindtodevice);
 
 /**
  * Frees the SOCKS5-UDP client object.

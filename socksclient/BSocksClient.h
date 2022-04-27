@@ -145,7 +145,7 @@ struct BSocksClient_auth_info BSocksClient_auth_password (const char *username, 
  */
 int BSocksClient_Init (BSocksClient *o, BAddr server_addr,
     const struct BSocksClient_auth_info *auth_info, size_t num_auth_info, BAddr dest_addr,
-    bool udp, BSocksClient_handler handler, void *user, BReactor *reactor) WARN_UNUSED;
+    bool udp, BSocksClient_handler handler, void *user, BReactor *reactor, const char *sobindtodevice) WARN_UNUSED;
 
 /**
  * Frees the object.

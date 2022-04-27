@@ -180,7 +180,7 @@ typedef void (*BConnector_handler) (void *user, int is_error);
  * The other type-specific init functions are wrappers around this one.
  */
 int BConnector_InitFrom (BConnector *o, struct BLisCon_from from, BReactor *reactor, void *user,
-                         BConnector_handler handler) WARN_UNUSED;
+                         BConnector_handler handler, const char *sobindtodevice) WARN_UNUSED;
 
 /**
  * Initializes the object for connecting to an address.
@@ -194,7 +194,7 @@ int BConnector_InitFrom (BConnector *o, struct BLisCon_from from, BReactor *reac
  * @return 1 on success, 0 on failure
  */
 int BConnector_Init (BConnector *o, BAddr addr, BReactor *reactor, void *user,
-                     BConnector_handler handler) WARN_UNUSED;
+                     BConnector_handler handler, const char *sobindtodevice) WARN_UNUSED;
 
 #ifndef BADVPN_USE_WINAPI
 /**
@@ -209,7 +209,7 @@ int BConnector_Init (BConnector *o, BAddr addr, BReactor *reactor, void *user,
  * @return 1 on success, 0 on failure
  */
 int BConnector_InitUnix (BConnector *o, const char *socket_path, BReactor *reactor, void *user,
-                         BConnector_handler handler) WARN_UNUSED;
+                         BConnector_handler handler, const char *sobindtodevice) WARN_UNUSED;
 #endif
 
 /**

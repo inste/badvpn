@@ -64,7 +64,7 @@ static void try_connect (SocksUdpGwClient *o)
     // init SOCKS client
     if (!BSocksClient_Init(&o->socks_client, o->socks_server_addr,
         o->auth_info, o->num_auth_info, o->remote_udpgw_addr, /*udp=*/false,
-        (BSocksClient_handler)socks_client_handler, o, o->reactor))
+        (BSocksClient_handler)socks_client_handler, o, o->reactor, NULL))
     {
         BLog(BLOG_ERROR, "BSocksClient_Init failed");
         goto fail0;
@@ -162,7 +162,7 @@ static void udpgw_handler_received (SocksUdpGwClient *o, BAddr local_addr, BAddr
 int SocksUdpGwClient_Init (SocksUdpGwClient *o, int udp_mtu, int max_connections, int send_buffer_size, btime_t keepalive_time,
                            BAddr socks_server_addr, const struct BSocksClient_auth_info *auth_info, size_t num_auth_info,
                            BAddr remote_udpgw_addr, btime_t reconnect_time, BReactor *reactor, void *user,
-                           SocksUdpGwClient_handler_received handler_received)
+                           SocksUdpGwClient_handler_received handler_received, const char *sobindtodevice)
 {
     // see asserts in UdpGwClient_Init
     ASSERT(!BAddr_IsInvalid(&socks_server_addr))

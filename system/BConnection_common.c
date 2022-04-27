@@ -44,15 +44,15 @@ int BListener_InitUnix (BListener *o, const char *socket_path, BReactor *reactor
 #endif
 
 int BConnector_Init (BConnector *o, BAddr addr, BReactor *reactor, void *user,
-                     BConnector_handler handler)
+                     BConnector_handler handler, const char *sobindtodevice)
 {
-    return BConnector_InitFrom(o, BLisCon_from_addr(addr), reactor, user, handler);
+    return BConnector_InitFrom(o, BLisCon_from_addr(addr), reactor, user, handler, sobindtodevice);
 }
 
 #ifndef BADVPN_USE_WINAPI
 int BConnector_InitUnix (BConnector *o, const char *socket_path, BReactor *reactor, void *user,
-                         BConnector_handler handler)
+                         BConnector_handler handler, const char *sobindtodevice)
 {
-    return BConnector_InitFrom(o, BLisCon_from_unix(socket_path), reactor, user, handler);
+    return BConnector_InitFrom(o, BLisCon_from_unix(socket_path), reactor, user, handler, sobindtodevice);
 }
 #endif

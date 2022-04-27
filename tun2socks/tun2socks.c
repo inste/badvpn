@@ -107,6 +107,7 @@ struct {
     int loglevels[BLOG_NUM_CHANNELS];
     char *tundev;
     char *ndm_script;
+    char *sobindtodevice;
     char *netif_ipaddr;
     char *netif_netmask;
     char *netif_ip6addr;
@@ -407,7 +408,7 @@ int main (int argc, char **argv)
         if (!SocksUdpGwClient_Init(&udpgw_client, udp_mtu, DEFAULT_UDPGW_MAX_CONNECTIONS,
             options.udpgw_connection_buffer_size, UDPGW_KEEPALIVE_TIME, socks_server_addr,
             socks_auth_info, socks_num_auth_info, udpgw_remote_server_addr,
-            UDPGW_RECONNECT_TIME, &ss, NULL, udp_send_packet_to_device))
+            UDPGW_RECONNECT_TIME, &ss, NULL, udp_send_packet_to_device, options.sobindtodevice))
         {
             BLog(BLOG_ERROR, "SocksUdpGwClient_Init failed");
             goto fail4a;
@@ -418,7 +419,8 @@ int main (int argc, char **argv)
         // init SOCKS UDP client
         SocksUdpClient_Init(&socks_udp_client, udp_mtu, DEFAULT_UDPGW_MAX_CONNECTIONS,
             SOCKS_UDP_SEND_BUFFER_PACKETS, UDPGW_KEEPALIVE_TIME, socks_server_addr,
-            socks_auth_info, socks_num_auth_info, &ss, NULL, udp_send_packet_to_device);
+            socks_auth_info, socks_num_auth_info, &ss, NULL, udp_send_packet_to_device,
+            options.sobindtodevice);
     } else {
         udp_mode = UdpModeNone;
     }
@@ -575,6 +577,7 @@ int parse_arguments (int argc, char *argv[])
         options.loglevels[i] = -1;
     }
     options.ndm_script = NULL;
+    options.sobindtodevice = NULL;
     options.tundev = NULL;
     options.netif_ipaddr = NULL;
     options.netif_netmask = NULL;
@@ -672,6 +675,14 @@ int parse_arguments (int argc, char *argv[])
                 return 0;
             }
             options.ndm_script = argv[i + 1];
+            i++;
+        }
+        else if (!strcmp(arg, "--sobindtodevice")) {
+            if (1 >= argc - i) {
+                fprintf(stderr, "%s: requires an argument\n", arg);
+                return 0;
+            }
+            options.sobindtodevice = argv[i + 1];
             i++;
         }
         else if (!strcmp(arg, "--tundev")) {
@@ -1374,7 +1385,7 @@ err_t listener_accept_func (void *arg, struct tcp_pcb *newpcb, err_t err)
     // init SOCKS
     if (!BSocksClient_Init(&client->socks_client,
         socks_server_addr, socks_auth_info, socks_num_auth_info, addr, /*udp=*/false,
-        (BSocksClient_handler)client_socks_handler, client, &ss))
+        (BSocksClient_handler)client_socks_handler, client, &ss, options.sobindtodevice))
     {
         BLog(BLOG_ERROR, "listener accept: BSocksClient_Init failed");
         goto fail1;

@@ -577,7 +577,7 @@ struct BSocksClient_auth_info BSocksClient_auth_password (const char *username, 
 
 int BSocksClient_Init (BSocksClient *o, BAddr server_addr,
     const struct BSocksClient_auth_info *auth_info, size_t num_auth_info, BAddr dest_addr,
-    bool udp, BSocksClient_handler handler, void *user, BReactor *reactor)
+    bool udp, BSocksClient_handler handler, void *user, BReactor *reactor, const char *sobindtodevice)
 {
     ASSERT(!BAddr_IsInvalid(&server_addr))
 #ifndef NDEBUG
@@ -604,7 +604,7 @@ int BSocksClient_Init (BSocksClient *o, BAddr server_addr,
         (BPending_handler)continue_job_handler, o);
     
     // init connector
-    if (!BConnector_Init(&o->connector, server_addr, o->reactor, o, (BConnector_handler)connector_handler)) {
+    if (!BConnector_Init(&o->connector, server_addr, o->reactor, o, (BConnector_handler)connector_handler, sobindtodevice)) {
         BLog(BLOG_ERROR, "BConnector_Init failed");
         goto fail0;
     }

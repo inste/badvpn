@@ -331,7 +331,7 @@ struct SocksUdpClient_connection * connection_init (
 
     // Initiate connection to socks server
     if (!BSocksClient_Init(&con->socks, o->server_addr, o->auth_info, o->num_auth_info,
-        dummy_dst_addr, true, (BSocksClient_handler)socks_state_handler, con, o->reactor))
+        dummy_dst_addr, true, (BSocksClient_handler)socks_state_handler, con, o->reactor, NULL))
     {
         BLog(BLOG_ERROR, "Failed to initialize SOCKS client");
         goto fail3;
@@ -557,7 +557,8 @@ int get_dns_id (BAddr *remote_addr, const uint8_t *data, int data_len)
 int SocksUdpClient_Init (SocksUdpClient *o, int udp_mtu, int max_connections,
     int send_buf_size, btime_t keepalive_time, BAddr server_addr,
     const struct BSocksClient_auth_info *auth_info, size_t num_auth_info,
-    BReactor *reactor, void *user, SocksUdpClient_handler_received handler_received)
+    BReactor *reactor, void *user, SocksUdpClient_handler_received handler_received,
+    const char *sobindtodevice)
 {
     ASSERT(udp_mtu >= 0)
     ASSERT(max_connections > 0)

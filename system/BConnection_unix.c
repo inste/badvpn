@@ -591,7 +591,7 @@ void BListener_Free (BListener *o)
 }
 
 int BConnector_InitFrom (BConnector *o, struct BLisCon_from from, BReactor *reactor, void *user,
-                         BConnector_handler handler)
+                         BConnector_handler handler, const char *sobindtodevice)
 {
     ASSERT(from.type == BLISCON_FROM_ADDR || from.type == BLISCON_FROM_UNIX)
     ASSERT(from.type != BLISCON_FROM_UNIX || from.u.from_unix.socket_path)
@@ -645,12 +645,21 @@ int BConnector_InitFrom (BConnector *o, struct BLisCon_from from, BReactor *reac
         BLog(BLOG_ERROR, "badvpn_set_nonblocking failed");
         goto fail2;
     }
-    
+
     // connect fd
     int connect_res;
     if (from.type == BLISCON_FROM_UNIX) {
         connect_res = connect(o->fd, (struct sockaddr *)&unixaddr.u.addr, unixaddr.len);
     } else {
+        if (sobindtodevice != NULL) {
+            if (setsockopt(o->fd, SOL_SOCKET, SO_BINDTODEVICE,
+                       (void *) sobindtodevice,
+                       strlen(sobindtodevice) + 1) < 0)
+            {
+               BLog(BLOG_ERROR, "SO_BINDTODEVICE failed");
+               goto fail2;
+            }
+        }
         connect_res = connect(o->fd, &sysaddr.addr.generic, sysaddr.len);
     }
     if (connect_res < 0 && errno != EINPROGRESS) {
